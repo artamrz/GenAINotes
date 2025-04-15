@@ -1,0 +1,77 @@
+import json
+from IPython.display import Markdown, display
+
+confirmed_booking = []
+required_fields = ["client_name", "phone_number", "email", "therapist_name", "day", "time"]
+
+def clean_json_output(raw):
+    return (
+        raw.strip()
+        .removeprefix("```json")
+        .removeprefix("```")
+        .removesuffix("```")
+        .strip()
+    )
+
+def get_booking_info(user_message):
+    prompt = f"""
+Extract the following info from the client message below:
+- client_name
+- phone_number
+- email
+- therapist_name
+- day
+- time
+
+Return a JSON object with the extracted fields. If any are missing, add a field called "missing_info_message" explaining which ones and politely ask the client for them.
+2.Return a JSON object with:
+-All the feilds above(leave missing ones out)
+-A field called`missing_info_message` listing which details are missing
+        
+3.If anything is missing, the message should ask for the missing details in a polite and friendly tone and say:
+"Please remember the booking confirmation will be sent by email and text message. If the appointment is not confirmed within 24 hours, it would be automatically canceled and you can try again anytime."
+        
+4.Return all the information as a JSON onject.
+Client: "{user_message}"
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.2,
+            max_output_tokens=256
+        )
+    )
+
+    cleaned = clean_json_output(response.text)
+    
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        print("JSON Decode Error. Gemini returned:")
+        print(response.text)
+        return {"missing_info_message": "Sorry, I couldn't understand. Could you repeat that?"}
+
+
+client_message = input("👤 Client: ")
+all_info = {}
+
+while True:
+    result = get_booking_info(client_message)
+
+    # Merge new info into the overall dict
+    all_info.update({k: v for k, v in result.items() if k in required_fields})
+
+    # Find what’s still missing
+    missing = [field for field in required_fields if field not in all_info]
+
+    if not missing:
+        display(Markdown("**Booking Confirmed!**"))
+        print(json.dumps(all_info, indent=2))
+        confirmed_booking.append(all_info)
+        break
+    else:
+        # Ask for what’s missing
+        display(Markdown(f"**Missing Info:** {result.get('missing_info_message')}"))
+        client_message = input("Client: ")
