@@ -1,0 +1,31 @@
+def get_top_responses(query, top_n=3):
+    query_vector = embedding_model.encode([query])
+    distances, indices = index.search(np.array(query_vector), top_n)
+    return [counselor_responses[i] for i in indices[0]]
+
+def generate_rag_response(user_input):
+    
+    similar = get_top_responses(user_input)
+
+    context_block = "\n".join([f"- {resp}" for resp in similar])
+    rag_prompt = f"""
+You are a supportive and emotionally intelligent virtual therapist.
+
+Here are real counseling responses to similar client messages:
+{context_block}
+
+Now, using the best ideas from above (or rewriting them), respond to this user:
+
+User: {user_input}
+TherapyBot:"""
+
+    
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=rag_prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.7,
+            max_output_tokens=350
+        )
+    )
+    return response.text.strip()
