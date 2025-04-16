@@ -54,7 +54,7 @@ Client: "{user_message}"
         return {"missing_info_message": "Sorry, I couldn't understand. Could you repeat that?"}
 
 
-client_message = input("👤 Client: ")
+client_message = input("Client: ")
 all_info = {}
 
 while True:
